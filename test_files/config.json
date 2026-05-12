@@ -1,0 +1,10 @@
+{
+  "app": "测试系统",
+  "version": "1.0.0",
+  "features": ["解析", "分析", "报表"],
+  "settings": {
+    "timeout": 30,
+    "retry": 3,
+    "debug": false
+  }
+}

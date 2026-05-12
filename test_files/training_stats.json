@@ -1,0 +1,13 @@
+{
+  "eval_loss": 0.3215,
+  "eval_accuracy": 0.9123,
+  "eval_f1": 0.8956,
+  "train_loss": 0.1842,
+  "epoch": 15,
+  "training_completed": true,
+  "best_checkpoint": {
+    "epoch": 12,
+    "eval_loss": 0.3145,
+    "eval_accuracy": 0.9210
+  }
+}

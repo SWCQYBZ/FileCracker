@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>手握长枪压不住 - 智能文件分析系统</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #ffffff; color: #2d2d2d; }
+
+/* ===== App Layout ===== */
+#app { display: flex; height: 100vh; }
+
+/* ===== Sidebar ===== */
+#sidebar { width: 260px; min-width: 260px; background: #f7f7f8; display: flex; flex-direction: column; padding: 12px; flex-shrink: 0; border-right: 1px solid #e5e5e5; }
+#sidebar .new-chat-btn { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid #d1d1d3; border-radius: 8px; color: #2d2d2d; background: transparent; cursor: pointer; font-size: 13px; width: 100%; }
+#sidebar .new-chat-btn:hover { background: #e5e5e5; }
+#sidebar .new-chat-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.sidebar-divider { flex: 1; }
+.sidebar-footer { padding: 8px 0; border-top: 1px solid #2f2f2f; display: flex; align-items: center; }
+
+/* ===== Conversation List ===== */
+#conv-list { flex: 1; overflow-y: auto; margin: 4px 0; }
+#conv-list::-webkit-scrollbar { width: 4px; }
+#conv-list::-webkit-scrollbar-thumb { background: #d1d1d3; border-radius: 2px; }
+.conv-item { display: flex; align-items: center; padding: 8px 10px; margin: 2px 0; border-radius: 8px; cursor: pointer; font-size: 13px; color: #2d2d2d; }
+.conv-item:hover { background: #e5e5e5; }
+.conv-item.active { background: #e5e5e5; }
+.conv-item .conv-info { flex: 1; min-width: 0; }
+.conv-item .conv-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.conv-item .conv-time { font-size: 11px; color: #b4b4b4; margin-top: 1px; }
+.conv-item .conv-del { display: none; font-size: 14px; color: #6b6b6b; padding: 0 4px; line-height: 1; }
+.conv-item:hover .conv-del { display: block; }
+.conv-item .conv-del:hover { color: #ef4146; }
+
+.sidebar-footer { padding: 8px 0; border-top: 1px solid #2f2f2f; display: flex; align-items: center; }
+.sidebar-logo-box { width: 52px; height: 52px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: #1a1a1a; cursor: pointer; margin-left: 4px; }
+.sidebar-logo-box svg { width: 36px; height: 36px; }
+.sidebar-brand { font-size: 13px; font-weight: 700; color: #6b6b6b; letter-spacing: 2px; margin-left: 10px; align-self: center; }
+.sidebar-status { display: flex; align-items: center; gap: 8px; padding: 8px 10px; font-size: 12px; color: #6b6b6b; }
+.sidebar-status .dot { width: 6px; height: 6px; border-radius: 50%; background: #19c37d; }
+.sidebar-status .dot.warning { background: #f9a825; }
+.sidebar-status .dot.error { background: #ef4146; }
+
+/* ===== Main ===== */
+#main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+/* ===== Top-left logo ===== */
+#top-logo { display: flex; align-items: center; gap: 8px; padding: 12px 20px 0; flex-shrink: 0; }
+#top-logo .logo-text { font-size: 13px; font-weight: 600; color: #2d2d2d; letter-spacing: 1px; }
+
+/* ===== Chat ===== */
+#chat-container { flex: 1; overflow-y: auto; scroll-behavior: smooth; }
+#chat-container::-webkit-scrollbar { width: 6px; }
+#chat-container::-webkit-scrollbar-track { background: transparent; }
+#chat-container::-webkit-scrollbar-thumb { background: #d1d1d3; border-radius: 3px; }
+.message { display: flex; gap: 16px; padding: 16px 24px; max-width: 860px; margin: 0 auto; }
+.message-agent { background: #f7f7f8; }
+.message:first-child { padding-top: 32px; }
+.avatar-agent { width: 28px; height: 28px; border-radius: 4px; background: #19c37d; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; color: #fff; }
+.avatar-user { width: 28px; height: 28px; border-radius: 4px; background: #5436da; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; color: #fff; }
+.bubble { flex: 1; min-width: 0; font-size: 14px; line-height: 1.7; overflow-wrap: break-word; }
+.bubble p { margin: 4px 0; }
+.bubble ul, .bubble ol { margin: 4px 0; padding-left: 20px; }
+.bubble li { margin: 2px 0; }
+.bubble h2 { font-size: 16px; margin: 16px 0 8px; color: #1a1a1a; }
+.bubble h3 { font-size: 14px; margin: 12px 0 6px; color: #1a1a1a; }
+.bubble pre { background: #f0f0f0; border: 1px solid #e5e5e5; border-radius: 8px; padding: 12px; overflow-x: auto; font-size: 13px; margin: 8px 0; }
+.bubble code { font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace; font-size: 13px; }
+.bubble-time { font-size: 11px; color: #b4b4b4; margin-top: 4px; }
+.attached-files { font-size: 12px; color: #6b6b6b; margin-bottom: 4px; background: #f0f0f0; border-radius: 6px; padding: 6px 10px; display: inline-block; }
+
+/* ===== Welcome Screen ===== */
+#welcome { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; text-align: center; padding: 32px; }
+#welcome.hidden { display: none; }
+#welcome .logo { width: 48px; height: 48px; background: #19c37d; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; margin-bottom: 16px; color: #fff; }
+#welcome h1 { font-size: 22px; font-weight: 600; margin-bottom: 8px; color: #1a1a1a; }
+#welcome p { color: #6b6b6b; font-size: 14px; max-width: 400px; line-height: 1.5; }
+#welcome .features { display: flex; gap: 12px; margin-top: 24px; flex-wrap: wrap; justify-content: center; }
+#welcome .feature-card { background: #ffffff; border: 1px solid #e5e5e5; border-radius: 10px; padding: 16px; width: 160px; text-align: left; cursor: pointer; }
+#welcome .feature-card:hover { background: #f7f7f8; border-color: #d1d1d3; }
+#welcome .feature-card .icon { font-size: 20px; margin-bottom: 8px; }
+#welcome .feature-card .title { font-size: 13px; font-weight: 600; margin-bottom: 4px; color: #2d2d2d; }
+#welcome .feature-card .desc { font-size: 11px; color: #6b6b6b; }
+
+/* ===== Input Area ===== */
+#input-area { padding: 0 24px 24px; flex-shrink: 0; }
+.input-wrapper { max-width: 860px; margin: 0 auto; background: #ffffff; border: 1px solid #d1d1d3; border-radius: 16px; padding: 8px 12px; display: flex; flex-direction: column; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
+.input-wrapper:focus-within { border-color: #19c37d; box-shadow: 0 2px 6px rgba(25,195,125,0.08); }
+.input-row { display: flex; gap: 4px; align-items: flex-end; }
+#chat-input { flex: 1; background: transparent; border: none; padding: 4px 8px; color: #2d2d2d; font-size: 14px; resize: none; font-family: inherit; line-height: 1.5; max-height: 200px; }
+#chat-input:focus { outline: none; }
+#chat-input::placeholder { color: #b4b4b4; }
+#chat-input:disabled { opacity: 0.5; }
+.btn-icon { width: 32px; height: 32px; border-radius: 8px; border: none; background: transparent; color: #6b6b6b; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.btn-icon:hover { background: #f0f0f0; color: #2d2d2d; }
+.btn-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.btn-send { width: 32px; height: 32px; border-radius: 8px; border: none; background: #19c37d; color: white; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.btn-send:hover { background: #1a7f5a; }
+.btn-send:disabled { background: #e5e5e5; color: #b4b4b4; cursor: not-allowed; }
+.btn-send svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.input-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding: 0 8px; }
+#file-count-label { font-size: 11px; color: #6b6b6b; }
+.input-footer-text { font-size: 11px; color: #b4b4b4; text-align: center; padding: 4px 0 0; }
+
+/* ===== File preview pills ===== */
+#file-preview { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; padding: 0 4px; }
+.file-pill { background: #f0f0f0; border: 1px solid #e5e5e5; border-radius: 12px; padding: 2px 10px; font-size: 12px; display: flex; align-items: center; gap: 6px; color: #2d2d2d; }
+.file-pill .remove { cursor: pointer; color: #6b6b6b; font-size: 14px; line-height: 1; }
+.file-pill .remove:hover { color: #ef4146; }
+
+/* ===== Drop zone ===== */
+#drop-zone { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.95); z-index: 1000; align-items: center; justify-content: center; margin: 16px; border: 2px dashed #19c37d; border-radius: 16px; }
+#drop-zone.active { display: flex; }
+.drop-content { text-align: center; }
+.drop-content .icon { font-size: 40px; margin-bottom: 12px; color: #19c37d; }
+.drop-content p { font-size: 15px; color: #2d2d2d; }
+.drop-content .hint { font-size: 12px; color: #6b6b6b; margin-top: 6px; }
+
+/* ===== Progress ===== */
+.progress-section { margin: 4px 0; }
+.progress-bar { height: 3px; background: #e5e5e5; border-radius: 2px; overflow: hidden; }
+.progress-fill { height: 100%; background: #19c37d; transition: width 0.4s ease; }
+.agent-steps { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
+.agent-step { font-size: 11px; padding: 2px 8px; border-radius: 4px; background: #f0f0f0; color: #6b6b6b; border: 1px solid #e5e5e5; }
+.agent-step.active { background: #19c37d; color: white; border-color: #19c37d; }
+.agent-step.done { background: rgba(25,195,125,0.08); color: #19c37d; border-color: rgba(25,195,125,0.2); }
+
+/* ===== Typing dots ===== */
+.typing-dots { display: flex; gap: 4px; margin-top: 6px; }
+.typing-dots span { width: 6px; height: 6px; border-radius: 50%; background: #b4b4b4; animation: pulse 1.4s infinite ease-in-out; }
+.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes pulse { 0%, 80%, 100% { opacity: 0.3; } 40% { opacity: 1; } }
+
+/* ===== Result ===== */
+.result-section { margin: 6px 0; }
+.result-section h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; color: #19c37d; }
+.download-section { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.download-btn { display: inline-flex; align-items: center; gap: 6px; background: #19c37d; color: white; border: none; border-radius: 8px; padding: 8px 16px; font-size: 13px; cursor: pointer; text-decoration: none; }
+.download-btn:hover { background: #1a7f5a; }
+.download-btn.secondary { background: #f0f0f0; color: #2d2d2d; border: 1px solid #d1d1d3; }
+.download-btn.secondary:hover { background: #e5e5e5; }
+.file-list { font-size: 13px; color: #6b6b6b; margin: 4px 0; padding-left: 16px; }
+.file-list li { margin: 2px 0; }
+.meta { font-size: 12px; color: #b4b4b4; }
+.error-msg { color: #ef4146; }
+
+@media (max-width: 768px) {
+  #sidebar { display: none; }
+  .message { padding: 12px 16px; }
+  #input-area { padding: 0 12px 16px; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <button class="new-chat-btn" onclick="newChat()">
+      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      新对话
+    </button>
+    <div id="conv-list"></div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-footer">
+      <div class="sidebar-logo-box" title="手握长枪压不住">
+        <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+          <!-- Blade -->
+          <path d="M24 2 L27.5 10 L26 12 L24 6 L22 12 L20.5 10 Z" fill="#e0e0e0" stroke="#999" stroke-width="0.6"/>
+          <path d="M24 6 L24 14" stroke="#999" stroke-width="0.6"/>
+          <line x1="24" y1="2" x2="24" y2="6" stroke="#bbb" stroke-width="0.5"/>
+          <!-- Red tassel -->
+          <path d="M21 12 Q18 16 16 14 Q18 17 21 15 Z" fill="#cc0000"/>
+          <path d="M27 12 Q30 16 32 14 Q30 17 27 15 Z" fill="#cc0000"/>
+          <path d="M23 13 Q20 18 18 17 Q20 19 23 16 Z" fill="#cc0000" opacity="0.9"/>
+          <path d="M25 13 Q28 18 30 17 Q28 19 25 16 Z" fill="#cc0000" opacity="0.9"/>
+          <path d="M22 14 Q18 20 16 19 Q18 21 22 18 Z" fill="#cc0000" opacity="0.75"/>
+          <path d="M26 14 Q30 20 32 19 Q30 21 26 18 Z" fill="#cc0000" opacity="0.75"/>
+          <!-- Shaft -->
+          <rect x="23" y="14" width="2" height="28" rx="1" fill="#8B6914"/>
+          <!-- Hand gripping shaft -->
+          <path d="M20 22 Q18 22 17 24 Q16 26 18 27 L23 27 L23 22 Z" fill="#f5cba7" stroke="#e0b89a" stroke-width="0.5"/>
+          <path d="M28 22 Q30 22 31 24 Q32 27 30 29 L25 29 L25 22 Z" fill="#f5cba7" stroke="#e0b89a" stroke-width="0.5"/>
+          <path d="M23 22 L25 22 L25 29 L23 29 Z" fill="#f0c4a0" stroke="#e0b89a" stroke-width="0.5"/>
+          <!-- Thumb -->
+          <path d="M21 22 Q20 20 22 19 L23 19 L23 22 Z" fill="#f5cba7" stroke="#e0b89a" stroke-width="0.5"/>
+          <!-- Knuckle lines -->
+          <line x1="28" y1="24" x2="30" y2="25" stroke="#e0b89a" stroke-width="0.5"/>
+          <line x1="28" y1="26" x2="31" y2="27" stroke="#e0b89a" stroke-width="0.5"/>
+          <!-- Butt -->
+          <path d="M22 42 L24 45 L26 42" fill="#e0e0e0" stroke="#999" stroke-width="0.6"/>
+        </svg>
+      </div>
+      <span class="sidebar-brand">SWCQYBZ</span>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div id="main">
+    <!-- Top-left logo bar -->
+    <div id="top-logo">
+      <svg viewBox="0 0 48 48" width="34" height="34" xmlns="http://www.w3.org/2000/svg">
+        <!-- Blade -->
+        <path d="M24 2 L27.5 10 L26 12 L24 6 L22 12 L20.5 10 Z" fill="#e8e8e8" stroke="#999" stroke-width="0.6"/>
+        <path d="M24 6 L24 14" stroke="#999" stroke-width="0.6"/>
+        <!-- Center ridge -->
+        <line x1="24" y1="2" x2="24" y2="6" stroke="#ccc" stroke-width="0.5"/>
+        <!-- Red tassel (缨) -->
+        <path d="M21 12 Q18 16 16 14 Q18 17 21 15 Z" fill="#cc0000"/>
+        <path d="M27 12 Q30 16 32 14 Q30 17 27 15 Z" fill="#cc0000"/>
+        <path d="M23 13 Q20 18 18 17 Q20 19 23 16 Z" fill="#cc0000" opacity="0.9"/>
+        <path d="M25 13 Q28 18 30 17 Q28 19 25 16 Z" fill="#cc0000" opacity="0.9"/>
+        <path d="M22 14 Q18 20 16 19 Q18 21 22 18 Z" fill="#cc0000" opacity="0.75"/>
+        <path d="M26 14 Q30 20 32 19 Q30 21 26 18 Z" fill="#cc0000" opacity="0.75"/>
+        <!-- Shaft -->
+        <rect x="23" y="14" width="2" height="28" rx="1" fill="#8B6914"/>
+        <rect x="23" y="14" width="2" height="28" rx="1" fill="url(#sg)" opacity="0.4"/>
+        <!-- Hand gripping -->
+        <path d="M20 22 Q18 22 17 24 Q16 26 18 27 L23 27 L23 22 Z" fill="#f5cba7" stroke="#e0b89a" stroke-width="0.5"/>
+        <path d="M28 22 Q30 22 31 24 Q32 27 30 29 L25 29 L25 22 Z" fill="#f5cba7" stroke="#e0b89a" stroke-width="0.5"/>
+        <path d="M23 22 L25 22 L25 29 L23 29 Z" fill="#f0c4a0" stroke="#e0b89a" stroke-width="0.5"/>
+        <path d="M21 22 Q20 20 22 19 L23 19 L23 22 Z" fill="#f5cba7" stroke="#e0b89a" stroke-width="0.5"/>
+        <line x1="28" y1="24" x2="30" y2="25" stroke="#e0b89a" stroke-width="0.5"/>
+        <line x1="28" y1="26" x2="31" y2="27" stroke="#e0b89a" stroke-width="0.5"/>
+        <defs>
+          <linearGradient id="sg" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#fff" stop-opacity="0.5"/>
+            <stop offset="40%" stop-color="#fff" stop-opacity="0"/>
+            <stop offset="100%" stop-color="#000" stop-opacity="0.2"/>
+          </linearGradient>
+        </defs>
+        <!-- Butt -->
+        <path d="M22 42 L24 45 L26 42" fill="#e8e8e8" stroke="#999" stroke-width="0.6"/>
+      </svg>
+      <span class="logo-text">手握长枪压不住</span>
+    </div>
+    <!-- Chat -->
+    <div id="chat-container">
+      <div id="welcome">
+        <p>上传文件并描述分析需求，多智能体协作自动分析</p>
+        <div class="features">
+          <div class="feature-card" onclick="setPrompt('总结这些文件的内容')">
+            <div class="icon">+</div>
+            <div class="title">文件总结</div>
+            <div class="desc">上传文件后自动生成摘要</div>
+          </div>
+          <div class="feature-card" onclick="setPrompt('分析数据中的趋势和风险')">
+            <div class="icon">%</div>
+            <div class="title">数据分析</div>
+            <div class="desc">统计分析、趋势与风险评估</div>
+          </div>
+          <div class="feature-card" onclick="setPrompt('提取表格数据并生成 Excel')">
+            <div class="icon">#</div>
+            <div class="title">导出表格</div>
+            <div class="desc">提取结构化数据生成 Excel</div>
+          </div>
+          <div class="feature-card" onclick="setPrompt('分析训练指标：eval_loss、准确率、收敛情况')">
+            <div class="icon">!</div>
+            <div class="title">微调分析</div>
+            <div class="desc">分析训练日志、评估指标、loss 曲线</div>
+          </div>
+          <div class="feature-card" onclick="setPrompt('分析这些业务文档，提取关键字段和信息')">
+            <div class="icon">D</div>
+            <div class="title">文档分析</div>
+            <div class="desc">分析工单、合同、报告等文档，提取结构化信息</div>
+          </div>
+        </div>
+      </div>
+      <div id="messages"></div>
+    </div>
+
+    <!-- Drop zone -->
+    <div id="drop-zone">
+      <div class="drop-content">
+        <div class="icon">+</div>
+        <p>释放以上传文件</p>
+        <p class="hint">支持文件、文件夹（直接拖入文件夹即可），支持 PDF、DOCX、CSV、JSON、图片等格式</p>
+      </div>
+    </div>
+
+    <!-- Input -->
+    <div id="input-area">
+      <div class="input-wrapper">
+        <div id="file-preview"></div>
+        <div class="input-row">
+          <button class="btn-icon" id="attach-btn" title="上传文件">
+            <svg viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+          </button>
+          <button class="btn-icon" id="folder-btn" title="上传文件夹">
+            <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+          </button>
+          <textarea id="chat-input" rows="1" placeholder="输入分析需求，例如：总结这些文件的内容..."></textarea>
+          <button class="btn-send" id="send-btn" disabled>
+            <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+        <div class="input-footer">
+          <span id="file-count-label"></span>
+        </div>
+      </div>
+      <div class="input-footer-text">智能文件分析系统 · 多智能体协作分析</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ======================== State ========================
+const STATE = { IDLE: 'idle', UPLOADING: 'uploading', ANALYZING: 'analyzing', POLLING: 'polling', COMPLETED: 'completed', FAILED: 'failed' };
+let currentState = STATE.IDLE;
+let taskId = null;
+let uploadedFiles = [];
+let pollingTimer = null;
+let conversationCount = 0;
+// 会话管理
+let conversations = [];
+let currentConvId = null;
+let _reloadingConv = false;
+const STORAGE_KEY = 'chat_conversations';
+
+const API_BASE = '/api/v1';
+const POLL_INTERVAL = 2000;
+const MAX_POLLS = 150;
+const SUPPORTED_EXTS = ['.pdf','.docx','.doc','.xlsx','.xls','.csv','.json','.jsonl','.md','.txt','.xml','.yaml','.yml','.jinja','.log','.out','.png','.jpg','.jpeg','.gif','.bmp','.tiff','.webp'];
+const ML_WEIGHT_EXTS = ['.safetensors','.pt','.pth','.bin','.ckpt','.gguf','.ggml','.onnx'];
+const WEIGHT_LABELS = {
+  '.safetensors': 'SafeTensors 模型权重', '.pt': 'PyTorch 模型权重', '.pth': 'PyTorch 模型权重',
+  '.bin': '二进制模型数据', '.ckpt': '模型检查点', '.gguf': 'GGUF 量化模型',
+  '.ggml': 'GGML 模型', '.onnx': 'ONNX 模型',
+};
+const AGENT_LABELS = { planner: '规划分析方案', parser: '解析文件内容', summary: '生成文件摘要', analysis: '数据分析', finetuning: '微调数据分析', document: '业务文档分析', spreadsheet: '生成数据表格', sync: '同步结果', report: '生成最终报告' };
+const AGENT_ORDER = ['planner','parser','summary','analysis','finetuning','document','spreadsheet','sync','report'];
+
+// ======================== DOM ========================
+const $ = id => document.getElementById(id);
+const chatContainer = $('chat-container');
+const messagesEl = $('messages');
+const welcomeEl = $('welcome');
+const chatInput = $('chat-input');
+const sendBtn = $('send-btn');
+const attachBtn = $('attach-btn');
+const fileInput = document.createElement('input');
+fileInput.type = 'file'; fileInput.multiple = true; fileInput.style.display = 'none';
+document.body.appendChild(fileInput);
+const folderInput = document.createElement('input');
+folderInput.type = 'file'; folderInput.webkitdirectory = true; folderInput.style.display = 'none';
+document.body.appendChild(folderInput);
+const filePreview = $('file-preview');
+const fileCountLabel = $('file-count-label');
+const dropZone = $('drop-zone');
+const dot = $('#sider-dot');
+const stext = $('#sider-status');
+
+// ======================== Init ========================
+document.addEventListener('DOMContentLoaded', async () => {
+  setupEvents();
+  await checkHealth();
+  // 恢复历史会话
+  _restoreConvs();
+  const lastConv = conversations.find(c => c.messages.length > 0);
+  if (lastConv) {
+    currentConvId = lastConv.id;
+    switchConv(lastConv.id);
+  } else {
+    _createNewConv();
+  }
+  renderConvList();
+  chatInput.disabled = false;
+  chatInput.focus();
+  autoResize();
+});
+
+// ======================== Health ========================
+async function checkHealth() {
+  try {
+    const r = await fetch('/health');
+    const d = await r.json();
+    if (d.deepseek_api === 'configured') { dot.className = 'dot'; stext.textContent = 'API 已连接'; }
+    else { dot.className = 'dot warning'; stext.textContent = '规则模式（无 API）'; }
+  } catch { dot.className = 'dot error'; stext.textContent = '未连接'; }
+}
+
+// ======================== Events ========================
+function setupEvents() {
+  attachBtn.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', e => { addFiles(Array.from(e.target.files)); e.target.value = ''; });
+  document.getElementById('folder-btn').addEventListener('click', () => folderInput.click());
+  folderInput.addEventListener('change', e => { addFiles(Array.from(e.target.files)); e.target.value = ''; });
+  sendBtn.addEventListener('click', handleSubmit);
+  chatInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); } });
+  chatInput.addEventListener('input', updateUI);
+
+  // Wizard cards
+  document.querySelectorAll('.feature-card').forEach(c => {
+    c.addEventListener('click', () => {
+      const text = c.querySelector('.title').textContent;
+      setPrompt(text);
+    });
+  });
+
+  // Drag & drop
+  let dc = 0;
+  document.addEventListener('dragenter', e => { e.preventDefault(); dc++; dropZone.classList.add('active'); });
+  document.addEventListener('dragleave', e => { e.preventDefault(); dc--; if (dc <= 0) { dc = 0; dropZone.classList.remove('active'); } });
+  document.addEventListener('dragover', e => e.preventDefault());
+  dropZone.addEventListener('drop', async e => {
+    e.preventDefault(); dc = 0; dropZone.classList.remove('active');
+    const files = await getFilesFromDataTransfer(e.dataTransfer);
+    addFiles(files);
+  });
+}
+
+function setPrompt(text) {
+  chatInput.value = text;
+  autoResize();
+  updateUI();
+  chatInput.focus();
+}
+
+function addFiles(files) {
+  const supported = [], mlWeights = [], tooLarge = [], otherExts = {};
+  files.forEach(f => {
+    const ext = '.' + f.name.split('.').pop().toLowerCase();
+    if (SUPPORTED_EXTS.includes(ext) || ext === '.jsonl' || ext === '.jinja') {
+      if (f.size > 50*1024*1024) { tooLarge.push(f); return; }
+      supported.push(f);
+    } else if (ML_WEIGHT_EXTS.includes(ext)) {
+      mlWeights.push(f);
+    } else {
+      otherExts[ext] = (otherExts[ext] || 0) + 1;
+    }
+  });
+  // Add supported files to upload list
+  supported.forEach(f => uploadedFiles.push(f));
+
+  // Display: compact summary for many files, individual pills for few
+  const totalFiles = uploadedFiles.length;
+  filePreview.innerHTML = '';  // rebuild all pills
+  if (totalFiles > 5) {
+    const pill = document.createElement('span');
+    pill.className = 'file-pill';
+    pill.innerHTML = `📁 ${totalFiles} 个文件 <span class="remove-clear">&times;</span>`;
+    pill.querySelector('.remove-clear').addEventListener('click', () => {
+      uploadedFiles = [];
+      filePreview.innerHTML = '';
+      updateUI();
+    });
+    filePreview.appendChild(pill);
+  } else {
+    uploadedFiles.forEach((f, idx) => {
+      const pill = document.createElement('span');
+      pill.className = 'file-pill';
+      pill.innerHTML = `${escapeHtml(f.name)} (${formatSize(f.size)}) <span class="remove" data-idx="${idx}">&times;</span>`;
+      pill.querySelector('.remove').addEventListener('click', () => {
+        uploadedFiles.splice(idx, 1);
+        pill.remove();
+        updateUI();
+      });
+      filePreview.appendChild(pill);
+    });
+  }
+  // Build scan report (only if anything was skipped or folder-sized)
+  const skippedCount = mlWeights.length + tooLarge.length + Object.values(otherExts).reduce((a,b)=>a+b, 0);
+  if (skippedCount > 0 || files.length >= 5) {
+    let report = '<strong style="font-size:15px;">📋 文件扫描报告</strong>';
+    report += `<div style="margin:4px 0 8px;font-size:13px;color:#888;">共 ${files.length} 个文件 · 可分析 ${supported.length} 个 · 跳过 ${skippedCount} 个</div>`;
+    const listFile = (f) => `<li style="margin:1px 0;">${escapeHtml(f.name)} <span style="color:#bbb;font-size:12px;">(${formatSize(f.size)})</span></li>`;
+    const MAX_SHOW = 15;
+    if (supported.length > 0) {
+      report += `<div style="margin:6px 0;"><span style="font-weight:600;color:#19c37d;">✅ 可分析文件（${supported.length}个）</span><ul style="margin:2px 0 0 14px;font-size:13px;">`;
+      supported.slice(0, MAX_SHOW).forEach(f => report += listFile(f));
+      if (supported.length > MAX_SHOW) report += `<li style="color:#bbb;">… 还有 ${supported.length - MAX_SHOW} 个</li>`;
+      report += '</ul></div>';
+    }
+    if (mlWeights.length > 0) {
+      report += `<div style="margin:6px 0;"><span style="font-weight:600;color:#f9a825;">ℹ️ 模型权重文件（${mlWeights.length}个 — 已自动跳过）</span><div style="font-size:12px;color:#bbb;">这些是模型参数，不包含可读文本，不影响数据分析</div><ul style="margin:2px 0 0 14px;font-size:13px;">`;
+      mlWeights.slice(0, MAX_SHOW).forEach(f => {
+        const ext = '.' + f.name.split('.').pop().toLowerCase();
+        const label = WEIGHT_LABELS[ext] || '模型文件';
+        report += `<li>${escapeHtml(f.name)} <span style="color:#bbb;font-size:12px;">(${formatSize(f.size)}, ${label})</span></li>`;
+      });
+      if (mlWeights.length > MAX_SHOW) report += `<li style="color:#bbb;">… 还有 ${mlWeights.length - MAX_SHOW} 个</li>`;
+      report += '</ul></div>';
+    }
+    if (tooLarge.length > 0) {
+      report += `<div style="margin:6px 0;"><span style="font-weight:600;color:#ef4146;">⚠️ 文件超过 50MB 限制（${tooLarge.length}个）</span><ul style="margin:2px 0 0 14px;font-size:13px;">`;
+      tooLarge.slice(0, MAX_SHOW).forEach(f => report += listFile(f));
+      if (tooLarge.length > MAX_SHOW) report += `<li style="color:#bbb;">… 还有 ${tooLarge.length - MAX_SHOW} 个</li>`;
+      report += '</ul></div>';
+    }
+    const otherKeys = Object.keys(otherExts);
+    if (otherKeys.length > 0) {
+      const totalOther = Object.values(otherExts).reduce((a,b)=>a+b, 0);
+      report += `<div style="margin:6px 0;"><span style="font-weight:600;color:#bbb;">🚫 无法识别的文件类型（${totalOther}个）</span><ul style="margin:2px 0 0 14px;font-size:13px;">`;
+      otherKeys.forEach(ext => report += `<li>${ext} x${otherExts[ext]}</li>`);
+      report += '</ul></div>';
+    }
+    report += `<div style="margin-top:10px;padding:8px 12px;background:#f7f9fb;border-radius:8px;font-size:13px;color:#555;border:1px solid #e8ecf0;">💡 <b>说明：</b>跳过的文件不包含可读文本。如果其中哪些文件<strong>确实包含重要文本信息</strong>，请在输入框中说明文件内容和格式，系统会尝试处理。否则直接输入分析需求开始分析可读文件即可。</div>`;
+    addMsg('system', report, true);
+  }
+  updateUI();
+}
+
+// ======================== Submit ========================
+async function handleSubmit() {
+  if (currentState !== STATE.IDLE) return;
+  const text = chatInput.value.trim();
+  if (!text && uploadedFiles.length === 0) return;
+  convStart();
+  showUserMsg(text, uploadedFiles.map(f => f.name));
+  chatInput.value = ''; filePreview.innerHTML = ''; updateUI();
+  currentState = STATE.UPLOADING;
+  setInputDisabled(true);
+  try {
+    let fileIds = [];
+    if (uploadedFiles.length > 0) { addMsg('system', `正在上传 ${uploadedFiles.length} 个文件...`); fileIds = await uploadFiles([...uploadedFiles]); uploadedFiles = []; }
+    if (fileIds.length === 0) { addMsg('system', '<span class="error-msg">请至少上传一个有效文件</span>'); currentState = STATE.IDLE; setInputDisabled(false); return; }
+    currentState = STATE.ANALYZING;
+    taskId = await startAnalysis(text || '请分析这些文件，总结内容并提取数据', fileIds);
+    currentState = STATE.POLLING;
+    showProgress();
+    await pollStatus(taskId);
+  } catch (err) {
+    currentState = STATE.FAILED;
+    addMsg('system', `<span class="error-msg">${escapeHtml(err.message)}</span>`);
+    currentState = STATE.IDLE; setInputDisabled(false);
+  }
+}
+
+async function uploadFiles(files) {
+  const fd = new FormData(); files.forEach(f => fd.append('files', f));
+  const r = await fetch(`${API_BASE}/upload`, { method: 'POST', body: fd });
+  if (!r.ok) { const e = await r.json(); throw new Error(e.detail || '上传失败'); }
+  const d = await r.json();
+  if (d.errors && d.errors.length > 0) d.errors.forEach(e => addMsg('system', `<span style="color:#f9a825">${escapeHtml(e.filename)}: ${escapeHtml(e.error)}</span>`));
+  return d.uploaded.map(u => u.file_id);
+}
+
+async function startAnalysis(text, fileIds) {
+  const p = new URLSearchParams(); p.append('request', text); p.append('file_ids', fileIds.join(','));
+  const r = await fetch(`${API_BASE}/analyze`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: p });
+  if (!r.ok) { const e = await r.json(); throw new Error(e.detail || '启动分析失败'); }
+  return (await r.json()).task_id;
+}
+
+async function pollStatus(tid) {
+  let a = 0;
+  while (a < MAX_POLLS) {
+    try {
+      const r = await fetch(`${API_BASE}/tasks/${tid}/status`);
+      if (!r.ok) { a++; await sleep(POLL_INTERVAL); continue; }
+      const d = await r.json();
+      updateProg(d);
+      if (d.status === 'completed') { currentState = STATE.COMPLETED; await showResult(tid); currentState = STATE.IDLE; setInputDisabled(false); return; }
+      if (d.status === 'failed') throw new Error((d.errors||[]).join(', ') || '分析任务失败');
+      a++; await sleep(POLL_INTERVAL);
+    } catch (err) {
+      if (err.message.includes('失败') || err.message.includes('failed') || a >= MAX_POLLS) throw err;
+      a++; await sleep(POLL_INTERVAL);
+    }
+  }
+  throw new Error('分析超时，请重试');
+}
+
+// ======================== UI ========================
+function convStart() { welcomeEl.classList.add('hidden'); }
+
+function showProgress() {
+  addMsg('agent', `<div class="progress-section"><div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div><div class="agent-steps" id="agent-steps">${AGENT_ORDER.map(a => `<span class="agent-step" data-agent="${a}">${AGENT_LABELS[a]||a}</span>`).join('')}</div></div>`);
+}
+
+function updateProg(d) {
+  const fill = document.querySelector('.progress-fill');
+  if (fill) fill.style.width = `${Math.min((d.progress||0)*100,100)}%`;
+  const hist = d.agent_history || [];
+  document.querySelectorAll('.agent-step').forEach(el => {
+    const a = el.dataset.agent; el.className = 'agent-step';
+    if (hist.includes(a)) el.classList.add('done');
+    if (hist.length > 0 && a === hist[hist.length-1] && d.status === 'running') el.classList.add('active');
+  });
+  if (hist.length > 0) {
+    const last = hist[hist.length-1];
+    if (!document.getElementById(`step-${last}`)) {
+      const label = AGENT_LABELS[last] || `执行: ${last}`;
+      addMsg('agent', `<strong>${label}</strong><div class="typing-dots"><span></span><span></span><span></span></div>`, false, `step-${last}`);
+    }
+  }
+}
+
+async function showResult(tid) {
+  const r = await fetch(`${API_BASE}/tasks/${tid}/result`);
+  if (!r.ok) { addMsg('system', '<span class="error-msg">获取结果失败</span>'); return; }
+  const d = await r.json();
+  let html = '';
+  if (d.summary) html += `<div class="result-section"><h3>文件总结</h3><div>${renderMD(d.summary)}</div></div>`;
+  if (d.analysis && Object.keys(d.analysis).length > 0) {
+    const llm = d.analysis.llm_analysis;
+    if (llm && typeof llm === 'object' && llm.summary) {
+      html += `<div class="result-section"><h3>智能分析</h3><p>${escapeHtml(llm.summary)}</p>`;
+      if (llm.key_insights && llm.key_insights.length > 0) { html += '<p><strong>关键发现：</strong></p><ul>'; llm.key_insights.forEach(k => html += `<li>${escapeHtml(k)}</li>`); html += '</ul>'; }
+      if (llm.recommendations && llm.recommendations.length > 0) { html += '<p><strong>建议：</strong></p><ul>'; llm.recommendations.forEach(r => html += `<li>${escapeHtml(r)}</li>`); html += '</ul>'; }
+      html += '</div>';
+    }
+    if (d.analysis.statistics && Object.keys(d.analysis.statistics).length > 0) html += `<div class="result-section"><h3>统计分析</h3><pre>${escapeHtml(JSON.stringify(d.analysis.statistics,null,2))}</pre></div>`;
+  }
+  if (d.files && d.files.length > 0) { html += `<div class="result-section"><h3>处理文件 (${d.files.length})</h3><ul class="file-list">`; d.files.forEach(f => html += `<li>${escapeHtml(f.filename||'')} - ${f.char_count||0} 字符, ${f.tables||0} 个表格</li>`); html += '</ul></div>'; }
+  // 微调分析
+  if (d.finetuning && d.finetuning.summary) {
+    html += `<div class="result-section"><h3 style="color:#f9a825;">微调训练分析</h3><p>${escapeHtml(d.finetuning.summary)}</p>`;
+    const llm = d.finetuning.llm_analysis;
+    if (llm && typeof llm === 'object') {
+      if (llm.overall_assessment) html += `<p><strong>AI 评估：</strong>${escapeHtml(llm.overall_assessment)}</p>`;
+      if (llm.recommendations && llm.recommendations.length > 0) { html += '<p><strong>改进建议：</strong></p><ul>'; llm.recommendations.forEach(r => html += `<li>${escapeHtml(r)}</li>`); html += '</ul>'; }
+    }
+    // 图表图片
+    const charts = d.finetuning.chart_images;
+    if (charts && charts.length > 0) {
+      html += '<div style="margin-top:12px;">';
+      charts.forEach(img => html += `<img src="${escapeHtml(img.url)}" alt="${escapeHtml(img.original)}" style="max-width:100%;border-radius:8px;border:1px solid #e5e5e5;margin-bottom:8px;">`);
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+  // 业务文档分析
+  if (d.document && d.document.summary) {
+    html += `<div class="result-section"><h3 style="color:#8B5CF6;">业务文档分析</h3>`;
+    html += `<p><strong>文档类型：</strong>${escapeHtml(d.document.document_type || '未知')}</p>`;
+    html += `<p>${escapeHtml(d.document.summary)}</p>`;
+    const fields = d.document.structured_fields;
+    if (fields && Object.keys(fields).length > 0) {
+      html += '<table style="width:100%;border-collapse:collapse;margin:8px 0;font-size:13px;">';
+      html += '<tr style="background:#f0f0f0;"><th style="padding:4px 8px;border:1px solid #ddd;text-align:left;">字段</th><th style="padding:4px 8px;border:1px solid #ddd;text-align:left;">值</th></tr>';
+      for (const [key, val] of Object.entries(fields)) {
+        if (val !== null && val !== '') {
+          const displayVal = Array.isArray(val) ? val.join(', ') : String(val);
+          html += `<tr><td style="padding:4px 8px;border:1px solid #ddd;">${escapeHtml(key)}</td><td style="padding:4px 8px;border:1px solid #ddd;">${escapeHtml(displayVal)}</td></tr>`;
+        }
+      }
+      html += '</table>';
+    }
+    const findings = d.document.key_findings;
+    if (findings && findings.length > 0) {
+      html += '<p><strong>关键发现：</strong></p><ul>';
+      findings.forEach(f => {
+        const importance = f.importance || 'medium';
+        const icon = importance === 'high' ? '🔴' : importance === 'medium' ? '🟡' : '🟢';
+        html += `<li>${icon} <strong>${escapeHtml(f.field || '')}：</strong>${escapeHtml(f.value || '')}</li>`;
+      });
+      html += '</ul>';
+    }
+    if (d.document.overall_analysis) {
+      html += `<p><strong>综合分析：</strong></p><p>${escapeHtml(d.document.overall_analysis)}</p>`;
+    }
+    html += '</div>';
+  }
+  let dl = '';
+  if (d.report_path) { const fn = d.report_path.split(/[/\\]/).pop(); dl += `<a class="download-btn" href="${API_BASE}/output/${encodeURIComponent(fn)}" download>📄 下载完整分析报告</a>`; }
+  if (dl) html += `<div class="download-section">${dl}</div>`;
+  if (d.duration) html += `<div class="meta">耗时: ${d.duration.toFixed(1)} 秒</div>`;
+  addMsg('agent', html || '<em>分析完成</em>');
+}
+
+// ======================== Message ========================
+function addMsg(type, content, noTime, id) {
+  const cls = { user: 'message-user', agent: 'message-agent', system: 'message-system' };
+  const av = { user: '<div class="avatar-user">U</div>', agent: '<div class="avatar-agent">AI</div>', system: '' };
+  const div = document.createElement('div');
+  div.className = `message ${cls[type] || 'message-system'}`;
+  if (id) div.id = id;
+  const t = noTime ? '' : `<div class="bubble-time">${formatTime(new Date())}</div>`;
+  div.innerHTML = type === 'system' ? `<div class="bubble"><div class="bubble-content">${content}</div>${t}</div>` : `${av[type]||''}<div class="bubble"><div class="bubble-content">${content}</div>${t}</div>`;
+  messagesEl.appendChild(div);
+  // Save message to current conversation (skip during history reload, skip noTime transient msgs)
+  const conv = conversations.find(c => c.id === currentConvId);
+  if (conv && !noTime && !_reloadingConv) {
+    conv.messages.push({type, content});
+    if (type === 'user' && conv.title === '新对话') {
+      const plain = content.replace(/<[^>]+>/g, '').trim();
+      conv.title = plain ? plain.slice(0, 22) + (plain.length > 22 ? '...' : '') : '文件分析';
+      renderConvList();
+    }
+    _persistConvs();
+  }
+  requestAnimationFrame(() => { chatContainer.scrollTop = chatContainer.scrollHeight; });
+}
+
+function showUserMsg(text, fileNames) {
+  let c = '';
+  if (fileNames && fileNames.length > 0) c += `<div class="attached-files">${fileNames.map(f => escapeHtml(f)).join(', ')}</div>`;
+  if (text) c += `<p>${escapeHtml(text)}</p>`; else c += '<p><em>(文件分析请求)</em></p>';
+  addMsg('user', c || '<em>(空)</em>');
+}
+
+// ======================== Utils ========================
+function escapeHtml(s) { if (typeof s !== 'string') return String(s||''); const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function formatTime(d) { return d.toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit'}); }
+function formatSize(b) { if (b<1024) return b+' B'; if (b<1048576) return (b/1024).toFixed(1)+' KB'; return (b/1048576).toFixed(1)+' MB'; }
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function autoResize() {
+  chatInput.addEventListener('input', () => { chatInput.style.height = 'auto'; chatInput.style.height = Math.min(chatInput.scrollHeight,200)+'px'; });
+}
+function updateUI() {
+  const hasText = chatInput.value.trim().length > 0;
+  const hasFiles = uploadedFiles.length > 0;
+  sendBtn.disabled = !hasText && !hasFiles;
+  fileCountLabel.textContent = uploadedFiles.length > 0 ? `${uploadedFiles.length} 个文件已选择` : '';
+}
+function setInputDisabled(v) { chatInput.disabled = v; }
+
+// ======================== Conversation Management ========================
+function _genId() { return 'conv_' + Date.now() + '_' + Math.random().toString(36).slice(2,6); }
+
+function _persistConvs() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations)); } catch {}
+}
+
+function _restoreConvs() {
+  try {
+    const data = localStorage.getItem(STORAGE_KEY);
+    if (data) conversations = JSON.parse(data);
+  } catch {}
+}
+
+function renderConvList() {
+  const el = document.getElementById('conv-list');
+  if (!el) return;
+  el.innerHTML = conversations.map(c => `
+    <div class="conv-item${c.id === currentConvId ? ' active' : ''}" data-id="${c.id}">
+      <div class="conv-info">
+        <div class="conv-title">${escapeHtml(c.title)}</div>
+        <div class="conv-time">${c.time || ''}</div>
+      </div>
+      <span class="conv-del" data-id="${c.id}">&times;</span>
+    </div>
+  `).join('');
+  el.querySelectorAll('.conv-item').forEach(item => {
+    item.addEventListener('click', e => {
+      if (e.target.classList.contains('conv-del')) return;
+      switchConv(item.dataset.id);
+    });
+  });
+  el.querySelectorAll('.conv-del').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      deleteConv(btn.dataset.id);
+    });
+  });
+}
+
+function switchConv(id) {
+  if (currentState !== STATE.IDLE || id === currentConvId) return;
+  currentConvId = id;
+  messagesEl.innerHTML = '';
+  welcomeEl.classList.add('hidden');
+  const conv = conversations.find(c => c.id === id);
+  if (conv) {
+    _reloadingConv = true;
+    conv.messages.forEach(m => addMsg(m.type, m.content, true));
+    _reloadingConv = false;
+  }
+  chatContainer.scrollTop = chatContainer.scrollHeight;
+  renderConvList();
+}
+
+function deleteConv(id) {
+  if (currentState !== STATE.IDLE) return;
+  conversations = conversations.filter(c => c.id !== id);
+  _persistConvs();
+  if (conversations.length === 0) {
+    // 删光了就创建新的
+    _createNewConv();
+    messagesEl.innerHTML = '';
+    welcomeEl.classList.remove('hidden');
+  } else if (id === currentConvId) {
+    // 删的是当前会话，切换到最新的
+    switchConv(conversations[conversations.length - 1].id);
+  }
+  renderConvList();
+}
+
+function _createNewConv() {
+  const id = _genId();
+  conversations.push({ id, title: '新对话', time: formatTime(new Date()), messages: [] });
+  currentConvId = id;
+}
+
+function newChat() {
+  if (currentState !== STATE.IDLE) return;
+  // 当前会话有内容就保存
+  const current = conversations.find(c => c.id === currentConvId);
+  if (current && current.messages.length > 0) {
+    current.time = formatTime(new Date());
+    _persistConvs();
+  }
+  // 清空界面
+  messagesEl.innerHTML = '';
+  welcomeEl.classList.remove('hidden');
+  chatInput.value = '';
+  filePreview.innerHTML = '';
+  uploadedFiles = [];
+  taskId = null;
+  updateUI();
+  chatInput.focus();
+  chatContainer.scrollTop = 0;
+  // 创建新会话
+  _createNewConv();
+  renderConvList();
+}
+
+// Recursively walk directories from drag-and-drop
+async function getFilesFromDataTransfer(dt) {
+  const items = dt.items;
+  if (items && items.length > 0 && items[0].webkitGetAsEntry) {
+    const files = [];
+    for (const item of items) {
+      const entry = item.webkitGetAsEntry();
+      if (entry) await walkEntry(entry, files);
+    }
+    return files;
+  }
+  return Array.from(dt.files || []);
+}
+
+async function walkEntry(entry, files) {
+  if (entry.isFile) {
+    const file = await new Promise(resolve => entry.file(resolve));
+    files.push(file);
+  } else if (entry.isDirectory) {
+    const reader = entry.createReader();
+    const entries = await new Promise(resolve => reader.readEntries(resolve));
+    for (const e of entries) {
+      await walkEntry(e, files);
+    }
+  }
+}
+
+function resetChat() { newChat(); }
+
+// ======================== Markdown ========================
+function renderMD(text) {
+  if (!text || typeof text !== 'string') return '';
+  let h = escapeHtml(text);
+  h = h.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+  h = h.replace(/`([^`]+)`/g, '<code>$1</code>');
+  h = h.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  h = h.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  h = h.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  h = h.replace(/^- (.+)$/gm, '<li>$1</li>');
+  h = h.replace(/(<li>.*<\/li>\n?)/g, '<ul>$1</ul>');
+  h = h.replace(/<\/ul>\n<ul>/g, '');
+  h = h.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+  h = h.replace(/\n\n/g, '</p><p>');
+  h = '<p>' + h + '</p>';
+  h = h.replace(/<p><\/p>/g, '');
+  h = h.replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank">$1</a>');
+  return h;
+}
+</script>
+</body>
+</html>

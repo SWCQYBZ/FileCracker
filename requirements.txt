@@ -1,0 +1,39 @@
+# ============================================================
+# 多智能体文件分析系统 - 依赖清单
+# ============================================================
+# 安装: pip install -r requirements.txt
+#
+# 各库的用途说明:
+# - langgraph: 微软/伯克利联合开发的有向图工作流框架，用于 Agent 编排
+# - langchain-core: LangChain 核心库，提供 LangGraph 需要的基类
+# - fastapi: 高性能异步 Web 框架，用于提供 REST API
+# - uvicorn: ASGI 服务器，用于运行 FastAPI 应用
+# - openai: OpenAI Python SDK（兼容 DeepSeek 等第三方 API 接口）
+# - python-dotenv: 从 .env 文件加载环境变量（避免每次设置 API Key）
+# - pymupdf: PDF 解析库（比 PyPDF2 更快，支持更多格式）
+# - python-docx: Word 文档（.docx）读写库
+# - openpyxl: Excel（.xlsx）读写库，支持样式设置
+# - pandas: 数据分析库（用于 csv_processor 中的 analyze_csv）
+# - python-multipart: FastAPI 处理文件上传需要
+# - pytesseract: OCR 文字识别引擎的 Python 封装
+# - Pillow: Python 图像处理库（OCR 前需要打开图片）
+# - pydantic: 数据验证库（FastAPI 和 LangGraph 都依赖它做运行时校验）
+# - chardet: 字符编码检测库（自动检测 CSV/TXT 文件的编码格式）
+# - pyyaml: YAML 格式解析库
+# ============================================================
+
+langgraph>=0.4.0
+langchain-core>=0.3.0
+fastapi>=0.115.0
+uvicorn[standard]
+openai>=1.0.0
+pymupdf>=1.24.0
+python-docx>=1.1.0
+openpyxl>=3.1.0
+pandas>=2.0.0
+python-multipart>=0.0.9
+pytesseract>=0.3.10
+Pillow>=10.0.0
+pydantic>=2.0.0
+chardet>=5.0.0
+pyyaml>=6.0
